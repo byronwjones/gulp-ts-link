@@ -1,0 +1,29 @@
+{
+  "name": "gulp-ts-link",
+  "description": "Creates a SINGLE, MODULE-FREE TypeScript or JavaScript file from multiple TS or JS source files that use TS/ES6 modules.",
+  "version": "1.0.0",
+  "repository": "byronwjones/gulp-ts-link",
+  "author": "Byron W. Jones <appdev@byronwjones.com> (http://byronwjones.com/)",
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "gulpplugin",
+    "typescript"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "gulp": "^4.0.0",
+    "mocha": "^6.0.2",
+    "stream-assert": "^2.0.3",
+    "vinyl": "^2.2.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "engines": {
+    "node": ">= 4"
+  },
+  "license": "MIT"
+}
