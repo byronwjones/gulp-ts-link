@@ -1,5 +1,6 @@
 const expect = require('chai').expect;
 const streamAssert = require('stream-assert');
+const through = require('through2');
 const tsLink = require('../');
 
 function bufferContents () {
@@ -52,12 +53,12 @@ var StreamExtensionProto = {
         return extendStream(this.stream);
     },
     expectStreamFile: function () {
-        return this.stream.x.expectFile(function (file) { 
+        return this.stream.x().expectFile(function (file) { 
             expect(file.isStream()).to.be.true;
         });
     },
     expectBufferFile: function () {
-        return this.stream.x.expectFile(function (file) { 
+        return this.stream.x().expectFile(function (file) { 
             expect(file.isBuffer()).to.be.true;
         });
     },
@@ -73,7 +74,9 @@ function StreamExtension(s) {
 StreamExtension.prototype = StreamExtensionProto;
 
 function extendStream (stream) {
-    stream.x = new StreamExtension(stream);
+    stream.x = function(){
+        return new StreamExtension(stream);
+    };
     return stream;
 }
 

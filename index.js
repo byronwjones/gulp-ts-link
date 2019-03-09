@@ -5,8 +5,36 @@ const PluginError = require('plugin-error');
 const fs = require('fs');
 const split = require('split');
 const pathResolver = require('path').resolve;
+const ReadableStream = require('stream').Readable;
 
 const PLUGIN_NAME = 'gulp-ts-link';
+
+function isNullOrUndefined(obj) {
+  return obj === (void 0) || obj === null; 
+}
+function isString(value) {
+  return !isNullOrUndefined(value) && (typeof value === 'string');
+}
+function setConfiguration(options) {
+  options = options || {};
+
+  var config = {
+    cwd: isString(options.cwd) ? options.cwd : null,
+    outFile: isString(options.outFile) ? options.outFile : null,
+    outputAs: 'input',
+    newLine: isString(options.newLine) ? options.newLine : '\r\n',
+    preserveImport: !!options.preserveImport,
+    preserveExport: !!options.preserveExport
+  };
+
+  if(!!options.outputAs) {
+    var oa = options.outputAs.toLowerCase().trim();
+    var acceptable = ['input', 'buffer', 'stream'];
+    if(acceptable.indexOf(oa) >= 0) { config.outputAs = oa; }
+  }
+
+  return config;
+}
 
 function linkFile(options, readFrom, writeTo, onError, onCompleted) {
     //create a read stream if one not provided
@@ -14,7 +42,7 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
         onError('No input file name or stream provided');
         return;
     }
-    if(Object.prototype.toString.call(readFrom) == '[object String]') {
+    if(isString(readFrom)) {
         readFrom = readFrom.trim();
         if(readFrom === ''){
             onError('No input file name or stream provided');
@@ -40,7 +68,7 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
     doneReading = false, 
     completed = false, 
     ignoringLines = false,
-    rootPath = null;
+    relPath = options.cwd;
     //process lines from input buffer
     readFrom.on('data', function(data) {
         lineBuffer.push(data);
@@ -67,7 +95,7 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
     }
 
     function writeLine(line) {
-        writeTo.write(line + '\r\n');
+        writeTo.write(line + options.newLine);
     }
 
     function readFromBuffer() {
@@ -82,37 +110,41 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
         var line = lineBuffer.shift();
 
         var rx = {
-            xref: /^\s*\/\/\s*@link:include\s+/i,
-            write: /^\s*\/\/\s*@link:write\s/i,
-            rootPath: /^\s*\/\/\s*@link:rootpath\s+/i,
-            startOmit: /^\s*\/\/\s*@link:startomit($|\s.*)/i,
-            endOmit: /^\s*\/\/\s*@link:endomit($|\s.*)/i,
-            export: /^\s*export\s+/,
+            inject: /^\s*\/\/\s*@tslink\s*:\s*inject\s+/i,
+            emit: /^\s*\/\/\s*@tslink\s*:\s*emit\s/i,
+            relPath: /^\s*\/\/\s*@tslink\s*:\s*relpath\s+/i,
+            startOmit: /^\s*\/\/\s*@tslink\s*:\s*startomit($|\s.*)/i,
+            endOmit: /^\s*\/\/\s*@tslink\s*:\s*endomit($|\s.*)/i,
+            export: /^\s*export\s*\{\s*[^}\s]+\s*\}/,
+            exportObj: /^\s*export\s+/,
             import: /^\s*import\s+/
         };
         // handle external file reference
-        if(!ignoringLines && rx.xref.test(line)){
-            line = line.replace(rx.xref, '');
-            line = !!rootPath ? pathResolver(rootPath, line) : pathResolver(line);
-            
-            //console.log('file path resolved to ' + line);
-            //console.log('rootPath set to ' + rootPath);
+        if(!ignoringLines && rx.inject.test(line)){
+            line = line.replace(rx.inject, '');
+            line = !!relPath ? pathResolver(relPath, line) : pathResolver(line);
 
-            linkFile(line, writeTo, errorHandler, finishBufferRead);
+            linkFile(options, line, writeTo, errorHandler, finishBufferRead);
         }
         // anything else handled locally
         else {
             // set root path for all include references below this line in this file
-            if(rx.rootPath.test(line)) {
-                line = line.replace(rx.rootPath, '');
-                rootPath = line;
-                //console.log('rootPath set to ' + rootPath);
+            if(rx.relPath.test(line)) {
+                line = line.replace(rx.relPath, '');
+                relPath = !!options.cwd ? pathResolver(options.cwd, line) : line;
             }
             // automatically ignore import statements
-            else if(rx.import.test(line)) { }
-            // write uncommented code into stream
-            else if(!ignoringLines && rx.write.test(line)) {
-                line = line.replace(rx.write, '');
+            else if(!options.preserveImport && rx.import.test(line)) { }
+            // automatically ignore export statements with {}
+            else if(!options.preserveExport && rx.export.test(line)) { }
+            // remove export keyword on class/interface exports
+            else if(!ignoringLines && rx.exportObj.test(line)) {
+                line = line.replace(rx.exportObj, '');
+                writeLine(line);
+            }
+            // write uncommented content into stream
+            else if(!ignoringLines && rx.emit.test(line)) {
+                line = line.replace(rx.emit, '');
                 writeLine(line);
             }
             // start omitting lines of code
@@ -122,11 +154,6 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
             // stop omitting lines of code
             else if(rx.endOmit.test(line)) {
                 ignoringLines = false;
-            }
-            // remove export keyword
-            else if(!ignoringLines && rx.export.test(line)) {
-                line = line.replace(rx.export, '');
-                writeLine(line);
             }
             // normal line of code
             else if(!ignoringLines) {
@@ -153,38 +180,66 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
         }
     }
 }
-//OPTIONS: outputAs, newLine, outFile, preserveImport, preserveExport
+
 // PLUGIN
-function main() {
+function main(options) {
   // define the Gulp stream
   var stream = through.obj(function(file, enc, cb) {
     if (file.isNull()) {
         return cb(null, file);
     }
+    
+    // normalize options map with defaults
+    options = setConfiguration(options);
+
+    var bufferContent = false,
+    inStream,
+    outBuffer = [];
+
     if (file.isBuffer()) {
-      this.emit('error', new PluginError(PLUGIN_NAME, 'Buffers are not supported in this version.'));
-      return cb();
+      // convert buffer to stream
+      inStream = new ReadableStream();
+      inStream.push(file.contents);
+      inStream.push(null);
+
+      //output a buffer whenever input is buffer, unless user wants a stream
+      bufferContent = options.outputAs !== 'stream';
     }
+    else if (file.isStream()) {
+      inStream = file.contents;
 
-    if (file.isStream()) {
-      // define the stream that will transform the content
-      var outStream = linkFile(file.contents, null, function error(err){
-        this.emit('error', new PluginError(PLUGIN_NAME, err));
-        !!outStream && outStream.end();
-      }, function done(){
-        outStream.end();
-        cb(null, file);
-      });
-
-      // catch errors from the output stream
-      outStream.on('error', this.emit.bind(this, 'error'));
-
-      // transform file contents
-      file.contents = outStream;
+      // output a stream whenever input is a stream, unless user wants a buffer
+      bufferContent = options.outputAs === 'buffer';
     }
     else {
         this.emit('error', new PluginError(PLUGIN_NAME, 'Unknown file type not supported'));
         return cb();
+    }
+
+    // define the stream that will transform the content
+    var outStream = linkFile(options, inStream, null, function error(err){
+      this.emit('error', new PluginError(PLUGIN_NAME, err));
+      outStream.end();
+    }, function done(){
+      outStream.end();
+    });
+
+    // catch errors from the output stream
+    outStream.on('error', this.emit.bind(this, 'error'));
+
+    // when changing file content to buffer, we need to wait until done writing output stream to callback
+    if(bufferContent) {
+      outStream.on('data', function(data){
+        outBuffer.push(data);
+      });
+      outStream.on('end', function(){
+        file.contents = Buffer.concat(outBuffer);
+        cb(null, file);
+      });
+    }
+    else {
+      file.contents = outStream;
+      cb(null, file);
     }
   });
 

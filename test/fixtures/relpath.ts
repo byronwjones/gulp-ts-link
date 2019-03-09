@@ -1,4 +1,4 @@
-// @tslink:relPath ./fixtures/subDirA
+// @tslink:relPath ./test/fixtures/subDirA
 // @tslink:inject content.ts
-// @tslink:relPath ./fixtures/subDirB
+// @tslink:relPath ./test/fixtures/subDirB
 // @tslink:inject content.ts

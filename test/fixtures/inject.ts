@@ -1,1 +1,1 @@
-// @tslink:inject ./fixtures/content.ts
+// @tslink:inject ./test/fixtures/content.ts

@@ -48,7 +48,7 @@ describe('gulp-ts-link', function() {
       stream.end();
     });
 
-    it('should not fail if no files were input to stream', function () {
+    it('should not fail if no files were input to stream', function (done) {
       var stream = tsLink().pipe(streamAssert.end(done));
 
       stream.end();
@@ -56,77 +56,77 @@ describe('gulp-ts-link', function() {
 
     it('should not emit TS/ES6 import statements by default', function (done) {
       use('import')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let f = 32;')
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('let f = 32;\r\n')
+        .x().endStream(done);
     });
 
     it('should not emit TS/ES6 export statements by default', function (done) {
       use('export')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let d = 16;')
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('let d = 16;\r\n')
+        .x().endStream(done);
     });
 
     it('should exclude `export` keyword when exporting a class/interface/etc.', function (done) {
-      use('export')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let d = 16;')
-        .x.endStream(done);
+      use('export-object')
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('class e {};\r\n')
+        .x().endStream(done);
     });
 
     it('should emit content specified in @tslink:emit to output file.', function (done) {
       use('emit')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let g = 64;')
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('let g = 64;\r\n')
+        .x().endStream(done);
     });
 
     it('should emit content from file specified in @tslink:inject comment to output file.', function (done) {
       use('inject')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let a = 2;\r\nlet b = 4;\r\nlet c = 8;')
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('let a = 2;\r\nlet b = 4;\r\nlet c = 8;\r\n')
+        .x().endStream(done);
     });
 
     it('should use path specified in @tslink:relPath comment to resolve full path of all subsequent @tslink:inject comments.', function (done) {
       use('relpath')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let subDirA = 100;\r\nlet subDirB = 1000;')
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('let subDirA = 100;\r\nlet subDirB = 1000;\r\n')
+        .x().endStream(done);
     });
 
     it('should not emit content between @tslink:startOmit and  @tslink:endOmit comments to output file.', function (done) {
       use('omit')
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectContent('let k = 1024;')
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectContent('let k = 1024;\r\n')
+        .x().endStream(done);
     });
 
     it('should return buffer file when input file content is buffer by default', function (done) {
       use('content', true) //buffer: true
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectBufferFile()
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectBufferFile()
+        .x().endStream(done);
     });
 
     it('should return stream file when input file content is stream by default', function (done) {
       use('content', false) //buffer: false
-        .x.tsLink()
-        .x.expectLength(1)
-        .x.expectStreamFile()
-        .x.endStream(done);
+        .x().tsLink()
+        .x().expectStreamLength(1)
+        .x().expectStreamFile()
+        .x().endStream(done);
     });
   });
-  
+
   describe('options', function () {
     
   });
