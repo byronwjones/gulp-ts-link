@@ -3,7 +3,7 @@
   "description": "Creates a SINGLE, MODULE-FREE TypeScript or JavaScript file from multiple TS or JS source files that use TS/ES6 modules.",
   "version": "1.0.0",
   "repository": "byronwjones/gulp-ts-link",
-  "author": "Byron W. Jones <appdev@byronwjones.com> (http://byronwjones.com/)",
+  "author": "Byron W. Jones <byron@byronwjones.com> (http://byronwjones.com/)",
   "files": [
     "index.js"
   ],

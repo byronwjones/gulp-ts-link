@@ -1,2 +1,2 @@
 # gulp-ts-link [![Build Status](https://travis-ci.com/byronwjones/gulp-ts-link.svg?branch=master)](https://travis-ci.com/byronwjones/gulp-ts-link)
-Use this Gulp plugin to build a straightforward, **module-free, single file** JavaScript library, and still get all of the awesome code organization benefits that come from using TypeScript/ES6 modules during development.  No Webpack weirdness.  Because sometimes, you can have it all.
+Build a good ol' fashioned, **nonmodular, single file** JavaScript library to run in a browser, but keep all of the awesome code organization benefits that come from using multiple source files and TypeScript modules during development.  No more Webpack weirdness in your transpiled code.  Because sometimes, you can have it all.
