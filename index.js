@@ -5,6 +5,7 @@ const PluginError = require('plugin-error');
 const fs = require('fs');
 const split = require('split');
 const pathResolver = require('path').resolve;
+const pathJoin = require('path').join;
 const ReadableStream = require('stream').Readable;
 
 const PLUGIN_NAME = 'gulp-ts-link';
@@ -19,7 +20,7 @@ function setConfiguration(options) {
   options = options || {};
 
   var config = {
-    cwd: isString(options.cwd) ? options.cwd : null,
+    base: isString(options.base) ? options.base : null,
     outFile: isString(options.outFile) ? options.outFile : null,
     outputAs: 'input',
     newLine: isString(options.newLine) ? options.newLine : '\r\n',
@@ -68,7 +69,7 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
     doneReading = false, 
     completed = false, 
     ignoringLines = false,
-    relPath = options.cwd;
+    relPath = options.base;
     //process lines from input buffer
     readFrom.on('data', function(data) {
         lineBuffer.push(data);
@@ -131,14 +132,14 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
             // set root path for all include references below this line in this file
             if(rx.relPath.test(line)) {
                 line = line.replace(rx.relPath, '');
-                relPath = !!options.cwd ? pathResolver(options.cwd, line) : line;
+                relPath = !!options.base ? pathResolver(options.base, line) : line;
             }
             // automatically ignore import statements
             else if(!options.preserveImport && rx.import.test(line)) { }
             // automatically ignore export statements with {}
             else if(!options.preserveExport && rx.export.test(line)) { }
             // remove export keyword on class/interface exports
-            else if(!ignoringLines && rx.exportObj.test(line)) {
+            else if(!ignoringLines && rx.exportObj.test(line) && !rx.export.test(line)) {
                 line = line.replace(rx.exportObj, '');
                 writeLine(line);
             }
@@ -190,6 +191,9 @@ function main(options) {
     }
     
     // normalize options map with defaults
+    if(isString(options)) {
+      options = {outFile: options};
+    }
     options = setConfiguration(options);
 
     var bufferContent = false,
@@ -212,7 +216,7 @@ function main(options) {
       bufferContent = options.outputAs === 'buffer';
     }
     else {
-        this.emit('error', new PluginError(PLUGIN_NAME, 'Unknown file type not supported'));
+        this.emit('error', new PluginError(PLUGIN_NAME, 'Unsupported file type encountered'));
         return cb();
     }
 
@@ -227,12 +231,17 @@ function main(options) {
     // catch errors from the output stream
     outStream.on('error', this.emit.bind(this, 'error'));
 
+    // change file name if requested
+    if(!!options.outFile) {
+      file.path = pathJoin(file.base, options.outFile);
+    }
+
     // when changing file content to buffer, we need to wait until done writing output stream to callback
     if(bufferContent) {
       outStream.on('data', function(data){
         outBuffer.push(data);
       });
-      outStream.on('end', function(){
+      outStream.on('end', function() {
         file.contents = Buffer.concat(outBuffer);
         cb(null, file);
       });

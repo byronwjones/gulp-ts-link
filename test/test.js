@@ -17,23 +17,6 @@ function use (name, buffer) {
   return extendStream(stream);
 }
 
-    //should return a stream when outputAs set to stream
-    //should return a buffer when outputAs set to buffer
-    //should emit imports when preserveImports true
-    //should emit exports when preserveExports true
-    //should change newLine char when one given
-    //should change file name to outFile
-    //should change current working directory when cwd given
-
-    //FIXTURES:
-    //src tag, ref line, src tag, ref line - relpath
-    //import tag, code - import
-    //code, export tag - export
-    //emit tag - emit
-    //ref tag, code - inject
-    //code, code, code - content
-    //start omit tag, code, code, code, end omit tag, code - omit
-
 describe('gulp-ts-link', function() {
 
   describe('tsLink()', function() {
@@ -128,6 +111,62 @@ describe('gulp-ts-link', function() {
   });
 
   describe('options', function () {
-    
+    it('should return stream file when outputAs is set to `stream`', function (done) {
+      use('content', true) //input file is a buffer
+        .x().tsLink({outputAs: 'stream'})
+        .x().expectStreamLength(1)
+        .x().expectStreamFile()
+        .x().endStream(done);
+    });
+
+    it('should return buffer file when outputAs is set to `buffer`', function (done) {
+      use('content', false) //input file is a stream
+        .x().tsLink({outputAs: 'buffer'})
+        .x().expectStreamLength(1)
+        .x().expectBufferFile()
+        .x().endStream(done);
+    });
+
+    it('should emit TS/ES6 import statements when preserveImport is true', function (done) {
+      use('import')
+        .x().tsLink({preserveImport: true})
+        .x().expectStreamLength(1)
+        .x().expectContent('import { d } from "./export";\r\nlet f = 32;\r\n')
+        .x().endStream(done);
+    });
+
+    it('should emit TS/ES6 export statements when preserveExport is true', function (done) {
+      use('export')
+        .x().tsLink({preserveExport: true})
+        .x().expectStreamLength(1)
+        .x().expectContent('let d = 16;\r\nexport { d };\r\n')
+        .x().endStream(done);
+    });
+
+    it('should use given new line character(s) when provided', function (done) {
+      use('content')
+        .x().tsLink({newLine: '$'})
+        .x().expectStreamLength(1)
+        .x().expectContent('let a = 2;$let b = 4;$let c = 8;$')
+        .x().endStream(done);
+    });
+
+    it('should change the base directory used to resolve all relative paths and external file refences when provided', function (done) {
+      use('base')
+        .x().tsLink({base: './test/fixtures/subdirA'})
+        .x().expectStreamLength(1)
+        .x().expectContent('let subDirA = 100;\r\n')
+        .x().endStream(done);
+    });
+
+    it('should change the file name when a different one is provided', function (done) {
+      use('content')
+        .x().tsLink({outFile: 'test.ts'})
+        .x().expectStreamLength(1)
+        .x().expectFile(function(file){
+          expect(file.path.indexOf('test.ts') > 0).to.be.true;
+        })
+        .x().endStream(done);
+    });
   });
 });

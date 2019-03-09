@@ -1,0 +1,1 @@
+// @tslink:inject content.ts
