@@ -4,10 +4,10 @@ Build a good ol' fashioned **nonmodular, ES3 compatible, single file** JavaScrip
 ## Installation
 Make sure you have `npm`, then run the console command `npm install gulp-ts-link --save-dev`
 
-##Usage
+## Usage
 Firstly, you'll need an *entry file* -- the place where all your individual TypeScript source files will come together to form a single TypeScript, which you will in turn transpile to create your JavaScript library.  The order in which your source files are included in your entry file is manually defined using *comment directives*.  For example:
 
-###index.es3.ts
+### index.es3.ts
 ```js
 let myLibrary = (function(){
     // @tslink:inject source-file-a.ts
