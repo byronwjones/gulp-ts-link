@@ -1,1 +1,1 @@
-let subDirA = 100;
+// @tslink:inject ../subdirB/content.ts

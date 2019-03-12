@@ -4,8 +4,7 @@ const through = require('through2');
 const PluginError = require('plugin-error');
 const fs = require('fs');
 const split = require('split');
-const pathResolver = require('path').resolve;
-const pathJoin = require('path').join;
+const path = require('path');
 const ReadableStream = require('stream').Readable;
 
 const PLUGIN_NAME = 'gulp-ts-link';
@@ -20,8 +19,7 @@ function setConfiguration(options) {
   options = options || {};
 
   var config = {
-    base: isString(options.base) ? options.base : null,
-    outFile: isString(options.outFile) ? options.outFile : null,
+    outFile: isString(options.outFile) && !!options.outFile.trim() ? options.outFile : null,
     outputAs: 'input',
     newLine: isString(options.newLine) ? options.newLine : '\r\n',
     preserveImport: !!options.preserveImport,
@@ -39,19 +37,10 @@ function setConfiguration(options) {
 
 function linkFile(options, readFrom, writeTo, onError, onCompleted) {
     //create a read stream if one not provided
-    if(!readFrom) {
-        onError('No input file name or stream provided');
-        return;
-    }
-    if(isString(readFrom)) {
-        readFrom = readFrom.trim();
-        if(readFrom === ''){
-            onError('No input file name or stream provided');
-            return;
-        }
+    if(!readFrom.stream) {
 
         try {
-            readFrom = fs.createReadStream(readFrom);
+            readFrom.stream = fs.createReadStream(readFrom.path);
         }
         catch(e) {
             onError(e.toString());
@@ -62,34 +51,33 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
     writeTo = writeTo || through();
 
     // chunk stream by lines
-    readFrom = readFrom.pipe(split());
+    readFrom.stream = readFrom.stream.pipe(split());
 
     var lineBuffer = [], 
     bufferBusy = false, 
     doneReading = false, 
     completed = false, 
-    ignoringLines = false,
-    relPath = options.base;
+    ignoringLines = false;
     //process lines from input buffer
-    readFrom.on('data', function(data) {
+    readFrom.stream.on('data', function(data) {
         lineBuffer.push(data);
         if(!bufferBusy && !completed) {
             readFromBuffer();
         }
     });
-    readFrom.on('end', function() {
+    readFrom.stream.on('end', function() {
         doneReading = true;
         if(!bufferBusy && !completed) {
             readFromBuffer();
         }
     });
-    readFrom.on('error', errorHandler);
+    readFrom.stream.on('error', errorHandler);
 
     return writeTo;
 
     function errorHandler(e) {
         readFrom.close();
-        onError('Error occurred while reading file: ' + e);
+        onError('Error occurred while reading ' + readFrom.path + ': ' + e);
         doneReading = true;
         completed = true;
         onCompleted = null; // never fire callback
@@ -113,33 +101,34 @@ function linkFile(options, readFrom, writeTo, onError, onCompleted) {
         var rx = {
             inject: /^\s*\/\/\s*@tslink\s*:\s*inject\s+/i,
             emit: /^\s*\/\/\s*@tslink\s*:\s*emit\s/i,
-            relPath: /^\s*\/\/\s*@tslink\s*:\s*relpath\s+/i,
             startOmit: /^\s*\/\/\s*@tslink\s*:\s*startomit($|\s.*)/i,
             endOmit: /^\s*\/\/\s*@tslink\s*:\s*endomit($|\s.*)/i,
             export: /^\s*export\s*\{\s*[^}\s]+\s*\}/,
+            starExport: /^\s*export\s+\*/,
             exportObj: /^\s*export\s+/,
             import: /^\s*import\s+/
         };
         // handle external file reference
         if(!ignoringLines && rx.inject.test(line)){
             line = line.replace(rx.inject, '');
-            line = !!relPath ? pathResolver(relPath, line) : pathResolver(line);
+            line =  path.resolve(readFrom.dir, line);
+            var injectFile = {
+                path: line,
+                dir: path.dirname(line),
+                stream: null
+            };
 
-            linkFile(options, line, writeTo, errorHandler, finishBufferRead);
+            linkFile(options, injectFile, writeTo, errorHandler, finishBufferRead);
         }
         // anything else handled locally
         else {
-            // set root path for all include references below this line in this file
-            if(rx.relPath.test(line)) {
-                line = line.replace(rx.relPath, '');
-                relPath = !!options.base ? pathResolver(options.base, line) : line;
-            }
             // automatically ignore import statements
-            else if(!options.preserveImport && rx.import.test(line)) { }
+            if(!options.preserveImport && rx.import.test(line)) { }
             // automatically ignore export statements with {}
-            else if(!options.preserveExport && rx.export.test(line)) { }
-            // remove export keyword on class/interface exports
-            else if(!ignoringLines && rx.exportObj.test(line) && !rx.export.test(line)) {
+            else if(!options.preserveExport && (rx.export.test(line) || rx.starExport.test(line))) { }
+            // remove export keyword declaration exports
+            else if(!ignoringLines && rx.exportObj.test(line) &&
+                    !rx.export.test(line) && !rx.starExport.test(line)) {
                 line = line.replace(rx.exportObj, '');
                 writeLine(line);
             }
@@ -220,8 +209,19 @@ function main(options) {
         return cb();
     }
 
+    var mainFile = {
+        path: file.path,
+        dir: file.base,
+        stream: inStream
+    };
+
+    // change file name if requested
+    if(!!options.outFile) {
+        file.path = path.join(file.base, options.outFile);
+    }
+
     // define the stream that will transform the content
-    var outStream = linkFile(options, inStream, null, function error(err){
+    var outStream = linkFile(options, mainFile, null, function error(err){
       this.emit('error', new PluginError(PLUGIN_NAME, err));
       outStream.end();
     }, function done(){
@@ -230,11 +230,6 @@ function main(options) {
 
     // catch errors from the output stream
     outStream.on('error', this.emit.bind(this, 'error'));
-
-    // change file name if requested
-    if(!!options.outFile) {
-      file.path = pathJoin(file.base, options.outFile);
-    }
 
     // when changing file content to buffer, we need to wait until done writing output stream to callback
     if(bufferContent) {

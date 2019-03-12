@@ -77,11 +77,11 @@ describe('gulp-ts-link', function() {
         .x().endStream(done);
     });
 
-    it('should use path specified in @tslink:relPath comment to resolve full path of all subsequent @tslink:inject comments.', function (done) {
+    it('should resolve path specified in @tslink:inject from the directory of the file containing the directive.', function (done) {
       use('relpath')
         .x().tsLink()
         .x().expectStreamLength(1)
-        .x().expectContent('let subDirA = 100;\r\nlet subDirB = 1000;\r\n')
+        .x().expectContent('let subDirB = 1000;\r\n')
         .x().endStream(done);
     });
 
@@ -111,6 +111,7 @@ describe('gulp-ts-link', function() {
   });
 
   describe('options', function () {
+
     it('should return stream file when outputAs is set to `stream`', function (done) {
       use('content', true) //input file is a buffer
         .x().tsLink({outputAs: 'stream'})
@@ -139,7 +140,7 @@ describe('gulp-ts-link', function() {
       use('export')
         .x().tsLink({preserveExport: true})
         .x().expectStreamLength(1)
-        .x().expectContent('let d = 16;\r\nexport { d };\r\n')
+        .x().expectContent('let d = 16;\r\nexport { d };\r\nexport * from "./import";\r\n')
         .x().endStream(done);
     });
 
@@ -148,14 +149,6 @@ describe('gulp-ts-link', function() {
         .x().tsLink({newLine: '$'})
         .x().expectStreamLength(1)
         .x().expectContent('let a = 2;$let b = 4;$let c = 8;$')
-        .x().endStream(done);
-    });
-
-    it('should change the base directory used to resolve all relative paths and external file refences when provided', function (done) {
-      use('base')
-        .x().tsLink({base: './test/fixtures/subdirA'})
-        .x().expectStreamLength(1)
-        .x().expectContent('let subDirA = 100;\r\n')
         .x().endStream(done);
     });
 
