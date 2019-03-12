@@ -1,5 +1,5 @@
 # gulp-ts-link [![Build Status](https://travis-ci.com/byronwjones/gulp-ts-link.svg?branch=master)](https://travis-ci.com/byronwjones/gulp-ts-link)
-Build a good ol' fashioned **nonmodular, ES3 compatible, single file** JavaScript library to run in a browser, while preserving all of the awesome code organization benefits that come from using multiple source files and TypeScript modules during development.  No more Webpack weirdness in your transpiled code.  Because sometimes, you can have it all.
+Build a good ol' fashioned **nonmodular, ES3 compatible, single file** JavaScript library to run in a browser, while preserving all of the awesome code organization benefits that come from using multiple source files and TypeScript modules during development.  No more Webpack weirdness in your transpiled code.  Because sometimes, you *can* have it all.
 
 ## Installation
 Make sure you have `npm`, then run the console command `npm install gulp-ts-link --save-dev`
@@ -24,7 +24,7 @@ let myLibrary = (function(){
 })();
 ```
 
-Our entry file wraps our library in an IIFE (Immediated-Invoked Function Expression) to avoid polluting the global object, and uses the `@tslink:inject [path-to-source-file]` directive to specify where to place each of the source files in the output file.
+In this example our entry file wraps our library in an IIFE (Immediated-Invoked Function Expression) to avoid polluting the global object, and uses the `@tslink:inject [path-to-source-file]` directive to specify where to place each of the source files in the output file.
 
 > **IMPORTANT:** When an absolute path is not given, the path to file referenced in a `@tslink:inject` directive is relative to the location of the file containing the directive.
 
